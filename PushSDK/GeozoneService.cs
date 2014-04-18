@@ -49,32 +49,38 @@ namespace PushSDK
 
         private void WatcherOnPositionChanged(object sender, GeoPositionChangedEventArgs<GeoCoordinate> e)
         {
-            if (DateTime.Now.TimeOfDay.Subtract(_lastTimeSend) >= _minSendTime)
-            {
-                _geozoneRequest.Lat = e.Position.Location.Latitude;
-                _geozoneRequest.Lon = e.Position.Location.Longitude;
+			try
+			{
+				if (DateTime.Now.TimeOfDay.Subtract(_lastTimeSend) >= _minSendTime)
+				{
+					_geozoneRequest.Lat = e.Position.Location.Latitude;
+					_geozoneRequest.Lon = e.Position.Location.Longitude;
 
-                WebClient webClient = new WebClient();
-                webClient.UploadStringCompleted += (o, args) =>
-                                                       {
-                                                           if (args.Error == null)
-                                                           {
-                                                               JObject jRoot = JObject.Parse(args.Result);
+					WebClient webClient = new WebClient();
+					webClient.UploadStringCompleted += (o, args) =>
+														   {
+																   if (args.Error == null)
+																   {
+																	   JObject jRoot = JObject.Parse(args.Result);
 
-                                                               if (JsonHelpers.GetStatusCode(jRoot) == 200)
-                                                               {
-                                                                   double dist = jRoot["response"].Value<double>("distance");
-                                                                   if (dist > 0)
-                                                                       LazyWatcher.MovementThreshold = dist/2;
-                                                               }
-                                                           }
+																	   if (JsonHelpers.GetStatusCode(jRoot) == 200)
+																	   {
+																		   double dist = jRoot["response"].Value<double>("distance");
+																		   if (dist > 0)
+																			   LazyWatcher.MovementThreshold = dist / 2;
+																	   }
+																   }
+														   };
+					string request = string.Format("{{\"request\":{0}}}", JsonConvert.SerializeObject(_geozoneRequest));
+					webClient.UploadStringAsync(Constants.GeozoneUrl, request);
 
-                                                       };
-                string request = string.Format("{{\"request\":{0}}}", JsonConvert.SerializeObject(_geozoneRequest));
-                webClient.UploadStringAsync(Constants.GeozoneUrl, request);
-
-                _lastTimeSend = DateTime.Now.TimeOfDay;
-            }
-        }
+					_lastTimeSend = DateTime.Now.TimeOfDay;
+				}
+			}
+			catch (Exception ex)
+			{
+				System.Diagnostics.Debug.WriteLine("Error when handling position change: " + ex.ToString());
+			}
+		}
     }
 }
