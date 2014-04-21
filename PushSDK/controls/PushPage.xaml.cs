@@ -14,17 +14,24 @@ namespace PushSDK.Controls
         {
             base.OnNavigatedTo(e);
 
-            var applicationService = ((PhonePushApplicationService) PhoneApplicationService.Current);
+            ToastPush push = SDKHelpers.ParsePushData(e.Uri.ToString());
+            NotificationService instance = NotificationService.GetCurrent();
+            if(instance != null)
+            {
+                instance.FireAcceptedPush(push);
+            }
+            else
+            {
+                NotificationService.StartPush = push;
+            }
 
-            applicationService.NotificationService.LastPush = SDKHelpers.ParsePushData(e.Uri.ToString());
-
-            applicationService.NotificationService.FireAcceptedPush();
+            string startPage = "/" + WMAppManifestReader.GetInstance().NavigationPage;
+            ((PhoneApplicationFrame) Application.Current.RootVisual).Navigate(new Uri(startPage, UriKind.RelativeOrAbsolute));
         }
 
         protected override void OnNavigatedFrom(NavigationEventArgs e)
         {
             NavigationService.RemoveBackEntry();
-            
             base.OnNavigatedFrom(e);
         }
     }

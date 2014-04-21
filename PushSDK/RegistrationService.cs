@@ -63,10 +63,14 @@ namespace PushSDK
                                                                errorMessage = JsonHelpers.GetStatusMessage(jRoot);
                                                        }
 
-                                                       if (!String.IsNullOrEmpty(errorMessage) && errorEvent != null)
+                                                       if (!String.IsNullOrEmpty(errorMessage))
                                                        {
                                                            Debug.WriteLine("Error: " + errorMessage);
-                                                           errorEvent(this, new CustomEventArgs<string> {Result = errorMessage});
+
+                                                           if (errorEvent != null)
+                                                           {
+                                                               errorEvent(this, new CustomEventArgs<string> { Result = errorMessage });
+                                                           }
                                                        }
                                                    };
 

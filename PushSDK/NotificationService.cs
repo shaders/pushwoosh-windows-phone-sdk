@@ -11,6 +11,7 @@ using Microsoft.Phone.Notification;
 using Microsoft.Phone.Tasks;
 using PushSDK.Classes;
 using PushSDK.Controls;
+using Newtonsoft.Json;
 
 namespace PushSDK
 {
@@ -28,6 +29,8 @@ namespace PushSDK
 
         #region public properties
 
+        static internal ToastPush StartPush { get; set; }
+
         /// <summary>
         /// Get content of last push notification
         /// </summary>
@@ -35,7 +38,7 @@ namespace PushSDK
         {
             get
             {
-                return LastPush != null ? LastPush.Contnet : string.Empty;
+                return LastPush != null ? LastPush.Content : string.Empty;
             }
         }
 
@@ -87,6 +90,12 @@ namespace PushSDK
 
         private static NotificationService _instance;
 
+        // may return null if no instance present
+        public static NotificationService GetCurrent()
+        {
+            return _instance;
+        }
+
         public static NotificationService GetCurrent(string appID, string pushPage, IEnumerable<string> tileTrustedServers)
         {
             return _instance ?? (_instance = tileTrustedServers == null ? new NotificationService(appID, pushPage) : new NotificationService(appID, pushPage, tileTrustedServers));
@@ -133,6 +142,13 @@ namespace PushSDK
         /// </summary>        
         public void SubscribeToPushService(string serviceName)
         {
+            //Dispatch start push it happened
+            if (StartPush != null)
+            {
+                FireAcceptedPush(StartPush);
+                StartPush = null;
+            }
+
             //First, try to pick up existing channel
             _notificationChannel = HttpNotificationChannel.Find(Constants.ChannelName);
 
@@ -140,13 +156,6 @@ namespace PushSDK
             {
                 Debug.WriteLine("Channel Exists - no need to create a new one");
                 SubscribeToChannelEvents();
-
-                Debug.WriteLine("Register the URI with 3rd party web service. URI is:" + _notificationChannel.ChannelUri);
-                SubscribeToService(AppID);
-
-                Debug.WriteLine("Subscribe to the channel to Tile and Toast notifications");
-                SubscribeToNotifications();
-
             }
             else
             {
@@ -162,8 +171,9 @@ namespace PushSDK
                 Debug.WriteLine("Trying to open the channel");
                 _notificationChannel.Open();
             }
+
             if (_notificationChannel.ChannelUri != null)
-                PushToken = _notificationChannel.ChannelUri.ToString();
+                ChannelChannelUriUpdated(this, null);
         }
 
         /// <summary>
@@ -220,47 +230,48 @@ namespace PushSDK
                                                               message.Completed += (o, args) =>
                                                                                        {
                                                                                            if (args.PopUpResult == PopUpResult.Ok)
-                                                                                                   FireAcceptedPush();
+                                                                                                   FireAcceptedPush(LastPush);
                                                                                        };
                                                               message.Show();
                                                           });
         }
 
-        internal void FireAcceptedPush()
+        internal void FireAcceptedPush(ToastPush push)
         {
-            Statistic.SendRequest();
-            if (LastPush.Url != null || LastPush.HtmlId != -1)
+            Statistic.SendRequest(push.Hash);
+
+            if (push.Url != null || push.HtmlId != -1)
             {
                 WebBrowserTask webBrowserTask = new WebBrowserTask();
 
-                if (LastPush.Url != null)
-                    webBrowserTask.Uri = LastPush.Url;
-                else if (LastPush.HtmlId != -1)
-                    webBrowserTask.Uri = new Uri(Constants.HtmlPageUrl + LastPush.HtmlId, UriKind.Absolute);
+                if (push.Url != null)
+                    webBrowserTask.Uri = push.Url;
+                else if (push.HtmlId != -1)
+                    webBrowserTask.Uri = new Uri(Constants.HtmlPageUrl + push.HtmlId, UriKind.Absolute);
 
                 webBrowserTask.Show();
             }
 
-            if (!string.IsNullOrEmpty(_pushPage) && Application.Current.RootVisual is PhoneApplicationFrame 
+            PushAccepted(push);
+
+            if (!string.IsNullOrEmpty(_pushPage) && Application.Current.RootVisual is PhoneApplicationFrame
                 && !_pushPage.EndsWith(((PhoneApplicationFrame)Application.Current.RootVisual).CurrentSource.ToString()))
             {
-                ((PhoneApplicationFrame) Application.Current.RootVisual).Navigated += OnNavigated;
-                ((PhoneApplicationFrame) Application.Current.RootVisual).Navigate(new Uri(_pushPage, UriKind.Relative));
+                ((PhoneApplicationFrame)Application.Current.RootVisual).Navigated += OnNavigated;
+                ((PhoneApplicationFrame)Application.Current.RootVisual).Navigate(new Uri(_pushPage, UriKind.Relative));
             }
-            else
-                PushAccepted();
         }
 
         private void OnNavigated(object sender, NavigationEventArgs navigationEventArgs)
         {
-            PushAccepted();
             ((PhoneApplicationFrame) Application.Current.RootVisual).Navigated -= OnNavigated;
         }
 
-        private void PushAccepted()
+        private void PushAccepted(ToastPush push)
         {
+            string pushString = JsonConvert.SerializeObject(push);
             if (OnPushAccepted != null)
-                OnPushAccepted(this, new CustomEventArgs<string> {Result = LastPushContent});
+                OnPushAccepted(this, new CustomEventArgs<string> {Result = pushString});
         }
 
         private void Channel_ErrorOccurred(object sender, NotificationChannelErrorEventArgs e)
@@ -318,7 +329,10 @@ namespace PushSDK
             if (OnPushTokenUpdated != null)
                 Deployment.Current.Dispatcher.BeginInvoke(() => OnPushTokenUpdated(this, new CustomEventArgs<Uri> { Result = _notificationChannel.ChannelUri }));
 
+            Debug.WriteLine("Register the URI with 3rd party web service. URI is:" + _notificationChannel.ChannelUri);
             SubscribeToService(AppID);
+
+            Debug.WriteLine("Subscribe to the channel to Tile and Toast notifications");
             SubscribeToNotifications();
         }
 

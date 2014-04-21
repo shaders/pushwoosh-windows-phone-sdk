@@ -13,5 +13,8 @@ namespace PushSDK.Classes
         {
             get { return SDKHelpers.GetDeviceUniqueId(); }
         }
+
+        [JsonProperty("hash")]
+        public string Hash { get; set; }
     }
 }

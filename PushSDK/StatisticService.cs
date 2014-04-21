@@ -14,8 +14,9 @@ namespace PushSDK
             _request = new StatisticRequest {AppId = appId};
         }
 
-        public void SendRequest()
+        public void SendRequest(string hash)
         {
+            _request.Hash = hash;
             string request = string.Format("{{\"request\":{0}}}", JsonConvert.SerializeObject(_request));
             _webClient.UploadStringAsync(Constants.StatisticUrl, request);
         }
