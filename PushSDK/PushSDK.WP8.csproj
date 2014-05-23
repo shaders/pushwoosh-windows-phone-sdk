@@ -104,7 +104,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Classes\WMAppManifestReader.cs" />
-    <Compile Include="Classes\CustomEventArgs.cs" />
     <Compile Include="Classes\GeozoneRequest.cs" />
     <Compile Include="Classes\JsonHelpers.cs" />
     <Compile Include="Classes\StatisticRequest.cs" />
@@ -119,7 +118,7 @@
     <Compile Include="GeozoneService.cs" />
     <Compile Include="NotificationService.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="PhonePushApplicationService.cs" />
+    <Compile Include="PushwooshAPIServiceBase.cs" />
     <Compile Include="RegistrationService.cs" />
     <Compile Include="StatisticService.cs" />
     <Compile Include="TagsService.cs" />

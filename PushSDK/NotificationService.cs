@@ -43,27 +43,31 @@ namespace PushSDK
         }
 
         /// <summary>
-        /// Get services for sending tags
-        /// </summary>
-        public TagsService Tags { get; private set; }
-
-        /// <summary>
         /// Get user data from the last push came
         /// </summary>
         public string UserData { get{return LastPush != null ? LastPush.UserData : string.Empty;}}
 
         /// <summary>
-        /// Get a service to manage Geozone
-        /// </summary>
-        public GeozoneService GeoZone { get; private set; }
-
-        /// <summary>
         /// Get push token
         /// </summary>
         public string PushToken { get; private set; }
+
+        /// <summary>
+        /// Get unique hardware ID, used in communication with Pushwoosh Remote API
+        /// </summary>
+        public string DeviceUniqueID { get { return SDKHelpers.GetDeviceUniqueId(); } }
         #endregion
 
         #region internal properties
+        /// <summary>
+        /// Get services for sending tags
+        /// </summary>
+        internal TagsService Tags { get; private set; }
+
+        /// <summary>
+        /// Get a service to manage Geozone
+        /// </summary>
+        internal GeozoneService GeoZone { get; private set; }
 
         private string AppID { get; set; }
 
@@ -78,12 +82,18 @@ namespace PushSDK
         /// <summary>
         /// User wants to see push
         /// </summary>
-        public event CustomEventHandler<string> OnPushAccepted;
+        public event EventHandler<string> OnPushAccepted;
 
         /// <summary>
-        /// On push token updated
+        /// Push registration succeeded
         /// </summary>
-        public event CustomEventHandler<Uri> OnPushTokenUpdated;
+        public event EventHandler<string> OnPushTokenReceived;
+
+        /// <summary>
+        /// Push registration failed
+        /// </summary>
+        public event EventHandler<string> OnPushTokenFailed;
+
         #endregion
 
         #region Singleton
@@ -109,6 +119,7 @@ namespace PushSDK
         {
             _pushPage = pushPage;
             AppID = appID;
+            PushToken = "";
 
             Statistic = new StatisticService(appID);
             Tags = new TagsService(appID);
@@ -149,9 +160,12 @@ namespace PushSDK
                 StartPush = null;
             }
 
+            //do nothing if already subscribed
+            if (_notificationChannel != null)
+                return;
+
             //First, try to pick up existing channel
             _notificationChannel = HttpNotificationChannel.Find(Constants.ChannelName);
-
             if (_notificationChannel != null)
             {
                 Debug.WriteLine("Channel Exists - no need to create a new one");
@@ -161,11 +175,10 @@ namespace PushSDK
             {
                 Debug.WriteLine("Trying to create a new channel...");
                 _notificationChannel = string.IsNullOrEmpty(serviceName)
-                                           ? new HttpNotificationChannel(Constants.ChannelName)
-                                           : new HttpNotificationChannel(Constants.ChannelName, serviceName);
+                                            ? new HttpNotificationChannel(Constants.ChannelName)
+                                            : new HttpNotificationChannel(Constants.ChannelName, serviceName);
 
                 Debug.WriteLine("New Push Notification channel created successfully");
-
                 SubscribeToChannelEvents();
 
                 Debug.WriteLine("Trying to open the channel");
@@ -177,26 +190,24 @@ namespace PushSDK
         }
 
         /// <summary>
-        /// Unsubscribe from pushes at pushwoosh server
+        ///  send Tag
         /// </summary>
-        public void UnsubscribeFromPushes()
+        public void SendTag(List<KeyValuePair<string, object>> tagList, EventHandler<List<KeyValuePair<string, string>>> OnTagSendSuccess, EventHandler<string> OnError)
         {
-            if (_registrationService == null) return;
-            _notificationChannel.UnbindToShellTile();
-            _notificationChannel.UnbindToShellToast();
-            _registrationService.Unregister();
+            TagsService Tags = new TagsService(AppID);
+            Tags.OnSuccess += OnTagSendSuccess;
+            Tags.OnError += OnError;
+            Tags.SendRequest(tagList);
         }
 
-        #endregion
-
-        #region private methods
-
-        private void SubscribeToService(string appID)
+        public void StartGeoLocation()
         {
-            if (_registrationService == null)
-                _registrationService = new RegistrationService();
+            GeoZone.Start();
+        }
 
-            _registrationService.Register(appID, _notificationChannel.ChannelUri);
+        public void StopGeoLocation()
+        {
+            GeoZone.Stop();
         }
 
         private void SubscribeToChannelEvents()
@@ -206,9 +217,36 @@ namespace PushSDK
 
             //general error handling for push channel
             _notificationChannel.ErrorOccurred += Channel_ErrorOccurred;
-
             _notificationChannel.ShellToastNotificationReceived += ChannelShellToastNotificationReceived;
+        }
 
+        /// <summary>
+        /// Unsubscribe from pushes at pushwoosh server
+        /// </summary>
+        public void UnsubscribeFromPushes()
+        {
+            if (_registrationService == null || _notificationChannel == null)
+                return;
+
+            _notificationChannel.UnbindToShellTile();
+            _notificationChannel.UnbindToShellToast();
+
+            PushToken = "";
+            _notificationChannel.Close();
+            _notificationChannel = null;
+            _registrationService.Unregister();
+        }
+
+        #endregion
+
+        #region private methods
+
+        private void SubscribeToPushwoosh(string appID)
+        {
+            if (_registrationService == null)
+                _registrationService = new RegistrationService();
+
+            _registrationService.Register(appID, _notificationChannel.ChannelUri.ToString());
         }
 
         private void ChannelShellToastNotificationReceived(object sender, NotificationEventArgs e)
@@ -225,15 +263,16 @@ namespace PushSDK
             Debug.WriteLine("/********************************************************/");
 
             Deployment.Current.Dispatcher.BeginInvoke(() =>
-                                                          {
-                                                              var message = new PushNotificationMessage(e.Collection);
-                                                              message.Completed += (o, args) =>
-                                                                                       {
-                                                                                           if (args.PopUpResult == PopUpResult.Ok)
-                                                                                                   FireAcceptedPush(LastPush);
-                                                                                       };
-                                                              message.Show();
-                                                          });
+            {
+                var message = new PushNotificationMessage(e.Collection);
+                message.Completed += (o, args) =>
+                {
+                    if (args.PopUpResult == PopUpResult.Ok)
+                        FireAcceptedPush(LastPush);
+                };
+
+                message.Show();
+            });
         }
 
         internal void FireAcceptedPush(ToastPush push)
@@ -253,13 +292,6 @@ namespace PushSDK
             }
 
             PushAccepted(push);
-
-            if (!string.IsNullOrEmpty(_pushPage) && Application.Current.RootVisual is PhoneApplicationFrame
-                && !_pushPage.EndsWith(((PhoneApplicationFrame)Application.Current.RootVisual).CurrentSource.ToString()))
-            {
-                ((PhoneApplicationFrame)Application.Current.RootVisual).Navigated += OnNavigated;
-                ((PhoneApplicationFrame)Application.Current.RootVisual).Navigate(new Uri(_pushPage, UriKind.Relative));
-            }
         }
 
         private void OnNavigated(object sender, NavigationEventArgs navigationEventArgs)
@@ -271,11 +303,14 @@ namespace PushSDK
         {
             string pushString = JsonConvert.SerializeObject(push);
             if (OnPushAccepted != null)
-                OnPushAccepted(this, new CustomEventArgs<string> {Result = pushString});
+                OnPushAccepted(this, pushString);
         }
 
         private void Channel_ErrorOccurred(object sender, NotificationChannelErrorEventArgs e)
         {
+            if (OnPushTokenFailed != null)
+                OnPushTokenFailed(this, e.Message);
+
             Debug.WriteLine("/********************************************************/");
             Debug.WriteLine("A push notification {0} error occurred.  {1} ({2}) {3}", e.ErrorType, e.Message, e.ErrorCode, e.ErrorAdditionalData);
         }
@@ -296,27 +331,29 @@ namespace PushSDK
         private void BindTileNotification()
         {
             if (_notificationChannel.IsShellTileBound)
-                Debug.WriteLine("Already bounded (register) to Tile Notifications");
-            else
             {
-                Debug.WriteLine("Registering to Tile Notifications");
-                // you can register the phone application to receive tile images from remote servers [this is optional]
-                if (_tileTrustedServers == null)
-                    _notificationChannel.BindToShellTile();
-                else
-                    _notificationChannel.BindToShellTile(_tileTrustedServers);
+                Debug.WriteLine("Already bounded (register) to Tile Notifications");
+                return;
             }
+                
+            Debug.WriteLine("Registering to Tile Notifications");
+            // you can register the phone application to receive tile images from remote servers [this is optional]
+            if (_tileTrustedServers == null)
+                _notificationChannel.BindToShellTile();
+            else
+                _notificationChannel.BindToShellTile(_tileTrustedServers);
         }
 
         private void BindToastNotification()
         {
             if (_notificationChannel.IsShellToastBound)
-                Debug.WriteLine("Already bounded (register) to to Toast notification");
-            else
             {
-                Debug.WriteLine("Registering to Toast Notifications");
-                _notificationChannel.BindToShellToast();
+                Debug.WriteLine("Already bounded (register) to to Toast notification");
+                return;
             }
+                
+            Debug.WriteLine("Registering to Toast Notifications");
+            _notificationChannel.BindToShellToast();
         }
 
         private void ChannelChannelUriUpdated(object sender, NotificationChannelUriEventArgs e)
@@ -326,11 +363,11 @@ namespace PushSDK
 
             PushToken = _notificationChannel.ChannelUri.ToString();
 
-            if (OnPushTokenUpdated != null)
-                Deployment.Current.Dispatcher.BeginInvoke(() => OnPushTokenUpdated(this, new CustomEventArgs<Uri> { Result = _notificationChannel.ChannelUri }));
+            if (OnPushTokenReceived != null)
+                Deployment.Current.Dispatcher.BeginInvoke(() => OnPushTokenReceived(this, _notificationChannel.ChannelUri.ToString()));
 
             Debug.WriteLine("Register the URI with 3rd party web service. URI is:" + _notificationChannel.ChannelUri);
-            SubscribeToService(AppID);
+            SubscribeToPushwoosh(AppID);
 
             Debug.WriteLine("Subscribe to the channel to Tile and Toast notifications");
             SubscribeToNotifications();

@@ -7,7 +7,7 @@ using Microsoft.Phone.Info;
 
 namespace PushSDK.Classes
 {
-    public static class SDKHelpers
+    internal static class SDKHelpers
     {
         public static string GetDeviceUniqueId()
         {
@@ -17,13 +17,13 @@ namespace PushSDK.Classes
             if (DeviceExtendedProperties.TryGetValue("DeviceUniqueId", out uniqueId))
             {
                 var resultByte = (byte[]) uniqueId;
-
                 result = resultByte.Aggregate(result, (current, item) => String.Format("{0}{1:X2}", current, item));
             }
+
             return result;
         }
 
-        public static ToastPush ParsePushData(string url)
+        internal static ToastPush ParsePushData(string url)
         {
             Dictionary<string, string> pushParams = ParseQueryString(Uri.UnescapeDataString(url));
             return new ToastPush

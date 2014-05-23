@@ -4,7 +4,7 @@ using Newtonsoft.Json;
 namespace PushSDK.Classes
 {
     [JsonObject]
-    public class ToastPush
+    internal class ToastPush
     {
         [JsonProperty("hash")]
         public string Hash { get; set; }
@@ -20,6 +20,5 @@ namespace PushSDK.Classes
 
         [JsonProperty("userdata")]
         public string UserData { get; set; }
-
     }
 }

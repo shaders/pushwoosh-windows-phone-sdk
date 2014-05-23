@@ -5,7 +5,7 @@ using Coding4Fun.Phone.Controls;
 
 namespace PushSDK.Controls
 {
-    public class PushNotificationMessage : MessagePrompt
+    internal class PushNotificationMessage : MessagePrompt
     {
         public PushNotificationMessage(IDictionary<string, string> collection)
         {

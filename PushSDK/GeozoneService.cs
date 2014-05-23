@@ -9,7 +9,7 @@ using PushSDK.Classes;
 
 namespace PushSDK
 {
-    public class GeozoneService
+    internal class GeozoneService : PushwooshAPIServiceBase
     {
         private const int MovementThreshold = 100;
         private readonly TimeSpan _minSendTime = TimeSpan.FromMinutes(10);
@@ -22,13 +22,14 @@ namespace PushSDK
                 if (_watcher == null)
                 {
                     _watcher = new GeoCoordinateWatcher(GeoPositionAccuracy.Default);
-                    _watcher.MovementThreshold = MovementThreshold;
-                    _watcher.PositionChanged += WatcherOnPositionChanged;
                 }
                 return _watcher;
             }
         }
+
         private readonly GeozoneRequest _geozoneRequest = new GeozoneRequest();
+
+        public event EventHandler<string> OnError;
 
         private TimeSpan _lastTimeSend;
 
@@ -39,11 +40,14 @@ namespace PushSDK
 
         public void Start()
         {
+            LazyWatcher.MovementThreshold = MovementThreshold;
+            LazyWatcher.PositionChanged += WatcherOnPositionChanged;
             LazyWatcher.Start();
         }
 
         public void Stop()
         {
+            LazyWatcher.PositionChanged -= WatcherOnPositionChanged;
             LazyWatcher.Stop();
         }
 
@@ -56,23 +60,12 @@ namespace PushSDK
 					_geozoneRequest.Lat = e.Position.Location.Latitude;
 					_geozoneRequest.Lon = e.Position.Location.Longitude;
 
-					WebClient webClient = new WebClient();
-					webClient.UploadStringCompleted += (o, args) =>
-														   {
-																   if (args.Error == null)
-																   {
-																	   JObject jRoot = JObject.Parse(args.Result);
-
-																	   if (JsonHelpers.GetStatusCode(jRoot) == 200)
-																	   {
-																		   double dist = jRoot["response"].Value<double>("distance");
-																		   if (dist > 0)
-																			   LazyWatcher.MovementThreshold = dist / 2;
-																	   }
-																   }
-														   };
-					string request = string.Format("{{\"request\":{0}}}", JsonConvert.SerializeObject(_geozoneRequest));
-					webClient.UploadStringAsync(Constants.GeozoneUrl, request);
+                    InternalSendRequestAsync(_geozoneRequest, Constants.GeozoneUrl,
+                        (obj, arg) => {
+                            double dist = arg["response"].Value<double>("distance");
+                            if (dist > 0)
+                                LazyWatcher.MovementThreshold = dist / 2;
+                        }, OnError);
 
 					_lastTimeSend = DateTime.Now.TimeOfDay;
 				}

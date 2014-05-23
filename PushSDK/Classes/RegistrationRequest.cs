@@ -5,7 +5,7 @@ using Newtonsoft.Json;
 namespace PushSDK.Classes
 {
     [JsonObject]
-    public struct RegistrationRequest
+    internal struct RegistrationRequest
     {
         [JsonProperty("application")]
         public string AppID { get; set; }
@@ -17,7 +17,7 @@ namespace PushSDK.Classes
         }
 
         [JsonProperty("push_token")]
-        public Uri PushToken { get; set; }
+        public string PushToken { get; set; }
 
         [JsonProperty("language")]
         public string Language

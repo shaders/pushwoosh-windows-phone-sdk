@@ -5,7 +5,7 @@ using System.Text;
 
 namespace PushSDK.Classes
 {
-    public class WMAppManifestReader
+    internal class WMAppManifestReader
     {
         private static WMAppManifestReader instance = null;
         private string navigationPage = string.Empty;

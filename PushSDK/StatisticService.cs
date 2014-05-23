@@ -4,10 +4,9 @@ using PushSDK.Classes;
 
 namespace PushSDK
 {
-    internal class StatisticService
+    internal class StatisticService : PushwooshAPIServiceBase
     {
         private readonly StatisticRequest _request;
-        private readonly WebClient _webClient = new WebClient();
 
         public StatisticService(string appId)
         {
@@ -17,8 +16,7 @@ namespace PushSDK
         public void SendRequest(string hash)
         {
             _request.Hash = hash;
-            string request = string.Format("{{\"request\":{0}}}", JsonConvert.SerializeObject(_request));
-            _webClient.UploadStringAsync(Constants.StatisticUrl, request);
+            InternalSendRequestAsync(_request, Constants.StatisticUrl, null, null);
         }
     }
 }
