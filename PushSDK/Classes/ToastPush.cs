@@ -20,5 +20,8 @@ namespace PushSDK.Classes
 
         [JsonProperty("userdata")]
         public string UserData { get; set; }
+
+        [JsonProperty("onStart")]
+        public bool OnStart { get; set; }
     }
 }

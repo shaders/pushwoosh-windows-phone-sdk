@@ -15,6 +15,8 @@ namespace PushSDK.Controls
             base.OnNavigatedTo(e);
 
             ToastPush push = SDKHelpers.ParsePushData(e.Uri.ToString());
+            push.OnStart = true;
+
             NotificationService instance = NotificationService.GetCurrent();
             if(instance != null)
             {

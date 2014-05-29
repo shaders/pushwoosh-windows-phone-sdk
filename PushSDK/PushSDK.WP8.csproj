@@ -5,7 +5,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>10.0.20506</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{038DA9F9-D982-4ADF-852C-D68C8894705E}</ProjectGuid>
+    <ProjectGuid>{69B6C3D8-29FA-40EB-BA67-FA3D66BE313A}</ProjectGuid>
     <ProjectTypeGuids>{C089C8C0-30E0-4E22-80C0-CE093F111A43};{fae04ec0-301f-11d3-bf4b-00c04f79efbc}</ProjectTypeGuids>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
@@ -94,10 +94,6 @@
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Coding4Fun.Phone.Controls, Version=1.6.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Coding4Fun.Phone.Controls.1.6.1\lib\sl4-windowsphone71\Coding4Fun.Phone.Controls.dll</HintPath>
-    </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\packages\Newtonsoft.Json.4.5.8\lib\sl4-windowsphone71\Newtonsoft.Json.dll</HintPath>
     </Reference>
@@ -110,7 +106,6 @@
     <Compile Include="Classes\SDKHelpers.cs" />
     <Compile Include="Classes\ToastPush.cs" />
     <Compile Include="Constants.cs" />
-    <Compile Include="Controls\PushNotificationMessage.cs" />
     <Compile Include="Classes\RegistrationRequest.cs" />
     <Compile Include="Controls\PushPage.xaml.cs">
       <DependentUpon>PushPage.xaml</DependentUpon>

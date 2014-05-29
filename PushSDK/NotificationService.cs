@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Navigation;
-using Coding4Fun.Phone.Controls;
 using Microsoft.Phone.Controls;
 using Microsoft.Phone.Notification;
 using Microsoft.Phone.Tasks;
@@ -258,13 +257,17 @@ namespace PushSDK
             {
                 Debug.WriteLine("{0}: {1}", key, e.Collection[key]);
                 if (key == "wp:Param")
+                {
                     LastPush = SDKHelpers.ParsePushData(e.Collection[key]);
+                    LastPush.OnStart = false;
+                }
             }
             Debug.WriteLine("/********************************************************/");
 
             Deployment.Current.Dispatcher.BeginInvoke(() =>
             {
-                var message = new PushNotificationMessage(e.Collection);
+                FireAcceptedPush(LastPush);
+/*                var message = new PushNotificationMessage(e.Collection);
                 message.Completed += (o, args) =>
                 {
                     if (args.PopUpResult == PopUpResult.Ok)
@@ -272,6 +275,7 @@ namespace PushSDK
                 };
 
                 message.Show();
+ */
             });
         }
 

@@ -92,10 +92,6 @@
     <Optimize>true</Optimize>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Coding4Fun.Phone.Controls, Version=1.6.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Coding4Fun.Phone.Controls.1.6.1\lib\sl4-windowsphone71\Coding4Fun.Phone.Controls.dll</HintPath>
-    </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\packages\Newtonsoft.Json.4.5.8\lib\sl4-windowsphone71\Newtonsoft.Json.dll</HintPath>
     </Reference>
@@ -108,7 +104,6 @@
     <Compile Include="Classes\ToastPush.cs" />
     <Compile Include="Classes\WMAppManifestReader.cs" />
     <Compile Include="Constants.cs" />
-    <Compile Include="Controls\PushNotificationMessage.cs" />
     <Compile Include="Classes\RegistrationRequest.cs" />
     <Compile Include="Controls\PushPage.xaml.cs">
       <DependentUpon>PushPage.xaml</DependentUpon>
