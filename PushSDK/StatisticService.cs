@@ -13,10 +13,16 @@ namespace PushSDK
             _request = new StatisticRequest {AppId = appId};
         }
 
-        public void SendRequest(string hash)
+        public void SendPushOpen(string hash)
         {
             _request.Hash = hash;
             InternalSendRequestAsync(_request, Constants.StatisticUrl, null, null);
+        }
+
+        public void SendAppOpen()
+        {
+            _request.Hash = null;
+            InternalSendRequestAsync(_request, Constants.AppOpenUrl, null, null);
         }
     }
 }

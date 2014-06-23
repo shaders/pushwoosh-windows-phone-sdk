@@ -123,6 +123,8 @@ namespace PushSDK
             Statistic = new StatisticService(appID);
             Tags = new TagsService(appID);
             GeoZone = new GeozoneService(appID);
+
+            Statistic.SendAppOpen();
         }
 
         /// <param name="appID">PushWoosh application id</param>
@@ -281,7 +283,7 @@ namespace PushSDK
 
         internal void FireAcceptedPush(ToastPush push)
         {
-            Statistic.SendRequest(push.Hash);
+            Statistic.SendPushOpen(push.Hash);
 
             if (push.Url != null || push.HtmlId != -1)
             {
