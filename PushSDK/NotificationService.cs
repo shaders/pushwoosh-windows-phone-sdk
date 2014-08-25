@@ -11,6 +11,8 @@ using Microsoft.Phone.Tasks;
 using PushSDK.Classes;
 using PushSDK.Controls;
 using Newtonsoft.Json;
+using Microsoft.Phone.Info;
+using Newtonsoft.Json.Linq;
 
 namespace PushSDK
 {
@@ -22,8 +24,6 @@ namespace PushSDK
         private readonly Collection<Uri> _tileTrustedServers;
 
         private HttpNotificationChannel _notificationChannel;
-
-        private RegistrationService _registrationService;
         #endregion
 
         #region public properties
@@ -58,10 +58,6 @@ namespace PushSDK
         #endregion
 
         #region internal properties
-        /// <summary>
-        /// Get services for sending tags
-        /// </summary>
-        internal TagsService Tags { get; private set; }
 
         /// <summary>
         /// Get a service to manage Geozone
@@ -69,8 +65,6 @@ namespace PushSDK
         internal GeozoneService GeoZone { get; private set; }
 
         private string AppID { get; set; }
-
-        private StatisticService Statistic { get; set; }
 
         internal ToastPush LastPush { get; set; }
 
@@ -81,7 +75,7 @@ namespace PushSDK
         /// <summary>
         /// User wants to see push
         /// </summary>
-        public event EventHandler<string> OnPushAccepted;
+        public event EventHandler<ToastPush> OnPushAccepted;
 
         /// <summary>
         /// Push registration succeeded
@@ -120,11 +114,10 @@ namespace PushSDK
             AppID = appID;
             PushToken = "";
 
-            Statistic = new StatisticService(appID);
-            Tags = new TagsService(appID);
             GeoZone = new GeozoneService(appID);
 
-            Statistic.SendAppOpen();
+            AppOpenRequest request = new AppOpenRequest { AppId = appID };
+            PushwooshAPIServiceBase.InternalSendRequestAsync(request, null, null);
         }
 
         /// <param name="appID">PushWoosh application id</param>
@@ -193,12 +186,17 @@ namespace PushSDK
         /// <summary>
         ///  send Tag
         /// </summary>
-        public void SendTag(List<KeyValuePair<string, object>> tagList, EventHandler<List<KeyValuePair<string, string>>> OnTagSendSuccess, EventHandler<string> OnError)
+        public void SendTag(List<KeyValuePair<string, object>> tagList, EventHandler<JObject> OnTagSendSuccess, EventHandler<string> OnError)
         {
-            TagsService Tags = new TagsService(AppID);
-            Tags.OnSuccess += OnTagSendSuccess;
-            Tags.OnError += OnError;
-            Tags.SendRequest(tagList);
+            SetTagsRequest request = new SetTagsRequest { AppId = AppID };
+            request.BuildTags(tagList);
+            PushwooshAPIServiceBase.InternalSendRequestAsync(request, OnTagSendSuccess, OnError);
+        }
+
+        public void GetTags(EventHandler<JObject> OnTagsSuccess, EventHandler<string> OnError)
+        {
+            GetTagsRequest request = new GetTagsRequest { AppId = AppID };
+            PushwooshAPIServiceBase.InternalSendRequestAsync(request, (obj, arg) => { if(OnTagsSuccess != null) OnTagsSuccess(this, request.Tags); }, OnError);
         }
 
         public void StartGeoLocation()
@@ -211,6 +209,48 @@ namespace PushSDK
             GeoZone.Stop();
         }
 
+        private void DetachChannelEvents()
+        {
+            if(_notificationChannel == null)
+                return;
+
+            try
+            {
+                _notificationChannel.ChannelUriUpdated -= ChannelChannelUriUpdated;
+                _notificationChannel.ErrorOccurred -= Channel_ErrorOccurred;
+                _notificationChannel.ShellToastNotificationReceived -= ChannelShellToastNotificationReceived;
+            }
+            catch {}
+
+        }
+
+        /// <summary>
+        /// Unsubscribe from push notifications
+        /// </summary>
+        public void UnsubscribeFromPushes(EventHandler<JObject> success, EventHandler<string> failure)
+        {
+            if (_notificationChannel != null)
+                DetachChannelEvents();
+            else
+                _notificationChannel = HttpNotificationChannel.Find(Constants.ChannelName);
+
+            if (_notificationChannel != null)
+            {
+                _notificationChannel.UnbindToShellTile();
+                _notificationChannel.UnbindToShellToast();
+                _notificationChannel.Close();
+                _notificationChannel = null;
+            }
+
+            PushToken = "";
+            UnregisterRequest request = new UnregisterRequest { AppId = AppID };
+            PushwooshAPIServiceBase.InternalSendRequestAsync(request, success, failure);
+        }
+
+        #endregion
+
+        #region private methods
+
         private void SubscribeToChannelEvents()
         {
             //Register to UriUpdated event - occurs when channel successfully opens
@@ -221,33 +261,22 @@ namespace PushSDK
             _notificationChannel.ShellToastNotificationReceived += ChannelShellToastNotificationReceived;
         }
 
-        /// <summary>
-        /// Unsubscribe from pushes at pushwoosh server
-        /// </summary>
-        public void UnsubscribeFromPushes()
-        {
-            if (_registrationService == null || _notificationChannel == null)
-                return;
-
-            _notificationChannel.UnbindToShellTile();
-            _notificationChannel.UnbindToShellToast();
-
-            PushToken = "";
-            _notificationChannel.Close();
-            _notificationChannel = null;
-            _registrationService.Unregister();
-        }
-
-        #endregion
-
-        #region private methods
-
         private void SubscribeToPushwoosh(string appID)
         {
-            if (_registrationService == null)
-                _registrationService = new RegistrationService();
+            string token = _notificationChannel.ChannelUri.ToString();
+            RegistrationRequest request = new RegistrationRequest {AppId = appID, PushToken = token};
 
-            _registrationService.Register(appID, _notificationChannel.ChannelUri.ToString());
+            PushwooshAPIServiceBase.InternalSendRequestAsync(request,
+                (obj, args) =>
+                {
+                    if (OnPushTokenReceived != null)
+                        Deployment.Current.Dispatcher.BeginInvoke(() => OnPushTokenReceived(this, _notificationChannel.ChannelUri.ToString()));
+                },
+                (obj, args) =>
+                {
+                    if (OnPushTokenFailed != null)
+                        Deployment.Current.Dispatcher.BeginInvoke(() => OnPushTokenFailed(this, request.ErrorMessage));
+                });
         }
 
         private void ChannelShellToastNotificationReceived(object sender, NotificationEventArgs e)
@@ -269,21 +298,13 @@ namespace PushSDK
             Deployment.Current.Dispatcher.BeginInvoke(() =>
             {
                 FireAcceptedPush(LastPush);
-/*                var message = new PushNotificationMessage(e.Collection);
-                message.Completed += (o, args) =>
-                {
-                    if (args.PopUpResult == PopUpResult.Ok)
-                        FireAcceptedPush(LastPush);
-                };
-
-                message.Show();
- */
             });
         }
 
         internal void FireAcceptedPush(ToastPush push)
         {
-            Statistic.SendPushOpen(push.Hash);
+            StatisticRequest request = new StatisticRequest { AppId = AppID, Hash = push.Hash };
+            PushwooshAPIServiceBase.InternalSendRequestAsync(request, null, null);
 
             if (push.Url != null || push.HtmlId != -1)
             {
@@ -307,9 +328,8 @@ namespace PushSDK
 
         private void PushAccepted(ToastPush push)
         {
-            string pushString = JsonConvert.SerializeObject(push);
             if (OnPushAccepted != null)
-                OnPushAccepted(this, pushString);
+                OnPushAccepted(this, push);
         }
 
         private void Channel_ErrorOccurred(object sender, NotificationChannelErrorEventArgs e)
@@ -369,13 +389,10 @@ namespace PushSDK
 
             PushToken = _notificationChannel.ChannelUri.ToString();
 
-            if (OnPushTokenReceived != null)
-                Deployment.Current.Dispatcher.BeginInvoke(() => OnPushTokenReceived(this, _notificationChannel.ChannelUri.ToString()));
-
-            Debug.WriteLine("Register the URI with 3rd party web service. URI is:" + _notificationChannel.ChannelUri);
+            Debug.WriteLine("Registering the token with Pushwoosh. URI is:" + _notificationChannel.ChannelUri);
             SubscribeToPushwoosh(AppID);
 
-            Debug.WriteLine("Subscribe to the channel to Tile and Toast notifications");
+            Debug.WriteLine("Subscribing the channel to Tile and Toast notifications");
             SubscribeToNotifications();
         }
 
