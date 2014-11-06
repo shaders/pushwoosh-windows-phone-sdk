@@ -1,3 +1,6 @@
+Current version: 1.2.1
+=========================
+Fixed parsing parameters when push contains "&"
 Current version: 1.2.0
 =========================
 new sdk build
