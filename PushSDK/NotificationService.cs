@@ -247,6 +247,14 @@ namespace PushSDK
             PushwooshAPIServiceBase.InternalSendRequestAsync(request, success, failure);
         }
 
+        public void TrackInAppPurchase(string productId, double price, string currency)
+        {
+            Int32 unixTimestamp = (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
+
+            SendPurchaseRequest request = new SendPurchaseRequest { AppId = AppID, ProductIdentifier = productId, Currency = currency, Price = price, Quantity = 1, DateTimeStamp = unixTimestamp};
+            PushwooshAPIServiceBase.InternalSendRequestAsync(request, null, null);
+        }
+
         #endregion
 
         #region private methods

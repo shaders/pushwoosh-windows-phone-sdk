@@ -2,6 +2,7 @@
 using System.Threading;
 using Newtonsoft.Json;
 using Microsoft.Phone.Info;
+using System.Xml.Linq;
 
 namespace PushSDK.Classes
 {
@@ -44,6 +45,14 @@ namespace PushSDK.Classes
             }
         }
 
+        [JsonProperty("app_version")]
+        public string AppVersion
+        {
+            get
+            {
+                return XDocument.Load("WMAppManifest.xml").Root.Element("App").Attribute("Version").Value;
+            }
+        }
 
         public override string GetMethodName() { return "registerDevice"; }
     }

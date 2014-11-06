@@ -25,18 +25,18 @@ namespace PushSDK.Classes
 
         internal static ToastPush ParsePushData(string url)
         {
-            Dictionary<string, string> pushParams = ParseQueryString(Uri.UnescapeDataString(url));
+            Dictionary<string, string> pushParams = ParseQueryString(url);
             ToastPush toast = new ToastPush
             {
-                Content = pushParams.ContainsKey("content") ? pushParams["content"] : string.Empty,
-                Hash = pushParams.ContainsKey("p") ? pushParams["p"] : string.Empty,
-                HtmlId = pushParams.ContainsKey("h") ? Convert.ToInt32(pushParams["h"]) : -1,
-                UserData = pushParams.ContainsKey("u") ? pushParams["u"] : string.Empty
+                Content = pushParams.ContainsKey("content") ? HttpUtility.UrlDecode(pushParams["content"]) : string.Empty,
+                Hash = pushParams.ContainsKey("p") ? HttpUtility.UrlDecode(pushParams["p"]) : string.Empty,
+                HtmlId = pushParams.ContainsKey("h") ? Convert.ToInt32(HttpUtility.UrlDecode(pushParams["h"])) : -1,
+                UserData = pushParams.ContainsKey("u") ? HttpUtility.UrlDecode(pushParams["u"]) : string.Empty
             };
 
             try
             {
-                toast.Url = pushParams.ContainsKey("l") ? new Uri(pushParams["l"], UriKind.Absolute) : null;
+                toast.Url = pushParams.ContainsKey("l") ? new Uri(HttpUtility.UrlDecode(pushParams["l"]), UriKind.Absolute) : null;
             }
             catch {}
 
