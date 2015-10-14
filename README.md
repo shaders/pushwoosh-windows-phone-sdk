@@ -12,7 +12,7 @@ The guilde for SDK integration is available on Pushwoosh website:
 http://www.pushwoosh.com/programming-push-notification/windows-phone/windows-phone-sdk-configuration-guide/
 
 The sample project is available here:  
-https://github.com/Pushwoosh/pushwoosh-sdk-samples/tree/master/Native/WP8
+https://github.com/Pushwoosh/pushwoosh-native-samples/tree/master/WP8
 
 Documentation:
 https://github.com/Pushwoosh/pushwoosh-windows-sdk/tree/master/Documentation-MPNS
